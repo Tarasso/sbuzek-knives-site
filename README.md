@@ -60,18 +60,13 @@ The Bicep deployment does not create a SAS policy or budget alert yet. Add those
 
 ## GitHub repository
 
-This folder is initialized as a local Git repository on branch `main`. To connect it after creating an empty repository under the intended personal GitHub account or organization:
+The public repository is [Tarasso/sbuzek-knives-site](https://github.com/Tarasso/sbuzek-knives-site). The local `main` branch tracks `origin/main`.
 
-```powershell
-git remote add origin https://github.com/<owner>/<repository>.git
-git push -u origin main
-```
-
-GitHub CLI is not installed in the current environment, so remote creation and authentication have not been attempted. Do not put a GitHub token in this repo or in chat.
+The workflow runs a production build on pushes and pull requests. Azure deployment stays disabled until the Static Web App is provisioned, the repository Actions secret `AZURE_STATIC_WEB_APPS_API_TOKEN` is configured, and the repository Actions variable `AZURE_STATIC_WEB_APPS_DEPLOY_ENABLED` is set to `true`. Never put deployment tokens or storage credentials in the repo.
 
 ## Next implementation steps
 
-1. Confirm the GitHub owner and personal Azure subscription; provision the Static Web App and storage.
+1. Select the personal Azure subscription and provision the Static Web App and storage.
 2. Build the Wix migration/review tooling and get Stan's approval of imported text, status, and featured knives.
 3. Implement the protected Functions API, client-side image pipeline, and phone-first admin screens; then test auth, ETag retries, uploads, and deletion.
 4. Migrate the bio, contact details, policies, banner, and gallery photos. Do not cut over DNS before Wix email records are inventoried.
