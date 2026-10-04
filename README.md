@@ -5,10 +5,10 @@ Astro static site for Stanley Buzek Knives. Public pages are static; the gallery
 ## Current state
 
 - Home, Gallery, Available, Contact, 404, and client-rendered knife detail routes are in place.
-- `shared/types.ts` defines the catalog contract. The empty `public/catalog.json` is only a local placeholder; production should use the Blob URL set through `PUBLIC_CATALOG_URL`.
-- `infra/main.bicep` provisions the Free Static Web App and the public-read `media` Blob container with versioning, soft delete, and CORS.
-- The GitHub Actions workflow deploys the Astro build to an existing Static Web App.
-- Admin UI/API, Wix migration, source photos, approved bio/policies, and production catalog seeding are not implemented yet. The original Wix copy and images must be migrated and reviewed before launch.
+- `shared/types.ts` defines the catalog contract. `public/catalog.json` is the local fallback; production reads the seeded catalog from Blob Storage.
+- `infra/main.bicep` provisions the Free Static Web App, public-read `media` container, versioning, soft delete, CORS, and a $5 monthly resource-group budget alert.
+- The Azure resources are deployed and the public catalog blob is seeded. The Static Web App is ready to publish at its `azurestaticapps.net` hostname on the next Actions deployment.
+- Admin UI/API, Wix migration, source photos, and approved bio/policies are not implemented yet. The original Wix copy and images must be migrated and reviewed before launch.
 - Custom-domain DNS/email cutover is intentionally out of scope until the Azure hostname has been accepted.
 
 ## Local development
@@ -39,34 +39,31 @@ Without those settings, the site reads the empty `public/catalog.json` placehold
 
 ## Azure setup
 
-Use a personal Azure subscription and the resource group `rg-sbuzek-site`. Sign in with Azure CLI and select that subscription before provisioning:
+The current deployment is in the personal Azure subscription's `rg-sbuzek-site` resource group in `eastus2`. The Static Web App is `swa-sbuzek-knives-km-20261004`; media is stored in `stsbuzekknives2026`.
+
+The published preview is [thankful-island-060006d0f.2.azurestaticapps.net](https://thankful-island-060006d0f.2.azurestaticapps.net). To redeploy the infrastructure from this checkout:
 
 ```powershell
 az login
 az account set --subscription <subscription-id>
 az group create --name rg-sbuzek-site --location eastus2
-az deployment group create --resource-group rg-sbuzek-site --template-file infra/main.bicep --parameters storageAccountName=<globally-unique-name>
+az deployment group create --resource-group rg-sbuzek-site --template-file infra/main.bicep --parameters storageAccountName=stsbuzekknives2026 staticWebAppName=swa-sbuzek-knives-km-20261004 budgetAlertEmail=<your-alert-email>
 ```
 
-The template creates the Static Web App and storage, but does not link GitHub or configure production custom-domain CORS. After deployment:
+The SWA deploy token is stored as the GitHub Actions secret `AZURE_STATIC_WEB_APPS_API_TOKEN`. Repository variables `PUBLIC_MEDIA_BASE_URL` and `PUBLIC_CATALOG_URL` point to the public Blob container. The deployment gate is controlled by `AZURE_STATIC_WEB_APPS_DEPLOY_ENABLED`; keep it `false` until the resources and variables are ready, then set it to `true`.
 
-1. Add approved custom hostnames as CORS origins after the domain is configured.
-2. Create the GitHub repository, connect it to the Static Web App, and set the app's build preset to Custom if prompted.
-3. Add the SWA deployment token as the repository Actions secret `AZURE_STATIC_WEB_APPS_API_TOKEN`.
-4. Set `PUBLIC_MEDIA_BASE_URL` and `PUBLIC_CATALOG_URL` as GitHub Actions build environment values, or commit a non-secret `.env.production` with those public URLs.
-5. Keep the storage SAS private. It belongs only in the Static Web App application setting `MEDIA_CONTAINER_SAS_URL` when the managed Functions API is implemented.
+Custom hostnames still need to be added to the storage CORS origins after DNS is configured. Keep the storage SAS private; it belongs only in the Static Web App application setting `MEDIA_CONTAINER_SAS_URL` when the managed Functions API is implemented.
 
-The Bicep deployment does not create a SAS policy or budget alert yet. Add those before putting the admin API into service. Never put storage keys or SAS values in the repo.
+The Bicep deployment does not create the container-scoped SAS policy required by the future admin API. Add that before putting the API into service. Never put storage keys or SAS values in the repo.
 
 ## GitHub repository
 
 The public repository is [Tarasso/sbuzek-knives-site](https://github.com/Tarasso/sbuzek-knives-site). The local `main` branch tracks `origin/main`.
 
-The workflow runs a production build on pushes and pull requests. Azure deployment stays disabled until the Static Web App is provisioned, the repository Actions secret `AZURE_STATIC_WEB_APPS_API_TOKEN` is configured, and the repository Actions variable `AZURE_STATIC_WEB_APPS_DEPLOY_ENABLED` is set to `true`. Never put deployment tokens or storage credentials in the repo.
+The workflow runs a production build on pushes and pull requests. Azure deployment is enabled only when the repository variable `AZURE_STATIC_WEB_APPS_DEPLOY_ENABLED` is `true`. Never put deployment tokens or storage credentials in the repo.
 
 ## Next implementation steps
 
-1. Select the personal Azure subscription and provision the Static Web App and storage.
-2. Build the Wix migration/review tooling and get Stan's approval of imported text, status, and featured knives.
-3. Implement the protected Functions API, client-side image pipeline, and phone-first admin screens; then test auth, ETag retries, uploads, and deletion.
-4. Migrate the bio, contact details, policies, banner, and gallery photos. Do not cut over DNS before Wix email records are inventoried.
+1. Confirm the preview deployment and then build the Wix migration/review tooling; get Stan's approval of imported text, status, and featured knives.
+2. Implement the protected Functions API, client-side image pipeline, and phone-first admin screens; then test auth, ETag retries, uploads, and deletion.
+3. Migrate the bio, contact details, policies, banner, and gallery photos. Do not cut over DNS before Wix email records are inventoried.

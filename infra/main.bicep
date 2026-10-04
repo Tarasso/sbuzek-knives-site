@@ -9,10 +9,14 @@ param staticWebAppName string = 'swa-sbuzek-site'
 @description('Additional origins allowed to fetch the public catalog.')
 param additionalCorsOrigins array = []
 
+@description('Email address for the monthly resource group budget alerts.')
+param budgetAlertEmail string
+
 param location string = resourceGroup().location
 
 var corsOrigins = concat([
   'http://localhost:4280'
+  'http://localhost:4321'
   'https://${staticWebApp.properties.defaultHostname}'
 ], additionalCorsOrigins)
 
@@ -77,6 +81,36 @@ resource staticWebApp 'Microsoft.Web/staticSites@2022-09-01' = {
     tier: 'Free'
   }
   properties: {}
+}
+
+resource monthlyBudget 'Microsoft.Consumption/budgets@2023-05-01' = {
+  name: '${resourceGroup().name}-monthly-budget'
+  scope: resourceGroup()
+  properties: {
+    category: 'Cost'
+    amount: 5
+    timeGrain: 'Monthly'
+    timePeriod: {
+      startDate: '2026-10-01T00:00:00Z'
+      endDate: '2027-10-01T00:00:00Z'
+    }
+    notifications: {
+      Actual_80_Percent: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 80
+        thresholdType: 'Actual'
+        contactEmails: [budgetAlertEmail]
+      }
+      Forecasted_100_Percent: {
+        enabled: true
+        operator: 'GreaterThan'
+        threshold: 100
+        thresholdType: 'Forecasted'
+        contactEmails: [budgetAlertEmail]
+      }
+    }
+  }
 }
 
 output mediaContainerUrl string = 'https://${storage.name}.blob.core.windows.net/media/'
