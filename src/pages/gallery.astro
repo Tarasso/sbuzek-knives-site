@@ -1,0 +1,15 @@
+---
+import GalleryView from "../components/GalleryView.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+---
+
+<SiteLayout title="Knife Gallery | S. Buzek Knives" description="Browse handmade knives by Stanley Buzek.">
+	<section class="page-heading">
+		<p class="eyebrow">The collection</p>
+		<h1>Knife gallery</h1>
+		<p>One-of-a-kind knives, made by hand in Caldwell, Texas.</p>
+	</section>
+	<section class="catalog-section" aria-label="Knife collection">
+		<GalleryView mode="gallery" />
+	</section>
+</SiteLayout>

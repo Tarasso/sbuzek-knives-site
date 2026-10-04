@@ -1,0 +1,13 @@
+---
+import SiteLayout from "../../layouts/SiteLayout.astro";
+---
+
+<SiteLayout title="Knife details | S. Buzek Knives" description="Details for a handmade knife by Stanley Buzek.">
+	<section class="knife-detail" data-knife-detail aria-live="polite" aria-busy="true">
+		<p class="catalog-message">Loading knife...</p>
+	</section>
+
+	<script>
+		import "../../lib/knife-detail.ts";
+	</script>
+</SiteLayout>

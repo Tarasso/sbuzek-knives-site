@@ -1,0 +1,15 @@
+{
+  "businessName": "Stanley Buzek Knives",
+  "location": "Caldwell, Texas",
+  "email": "stan@sbuzekknives.com",
+  "socials": [
+    {
+      "label": "Facebook",
+      "url": "https://www.facebook.com/stanley.buzek"
+    },
+    {
+      "label": "Instagram",
+      "url": "https://www.instagram.com/sbuzekknives"
+    }
+  ]
+}

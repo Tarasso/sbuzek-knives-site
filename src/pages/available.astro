@@ -1,0 +1,15 @@
+---
+import GalleryView from "../components/GalleryView.astro";
+import SiteLayout from "../layouts/SiteLayout.astro";
+---
+
+<SiteLayout title="Available Knives | S. Buzek Knives" description="Knives currently available from Stanley Buzek.">
+	<section class="page-heading">
+		<p class="eyebrow">From the shop</p>
+		<h1>Available knives</h1>
+		<p>For questions or to inquire about a knife, get in touch directly.</p>
+	</section>
+	<section class="catalog-section" aria-label="Knives currently available">
+		<GalleryView mode="available" />
+	</section>
+</SiteLayout>

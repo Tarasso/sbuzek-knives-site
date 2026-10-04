@@ -1,0 +1,25 @@
+---
+import SiteLayout from "../layouts/SiteLayout.astro";
+import site from "../content/site.json";
+---
+
+<SiteLayout title="Contact | S. Buzek Knives" description="Contact Stanley Buzek about handmade knives.">
+	<section class="page-heading">
+		<p class="eyebrow">Get in touch</p>
+		<h1>Contact</h1>
+		<p>For questions about a knife, please get in touch directly.</p>
+	</section>
+	<section class="contact-content">
+		<div>
+			<h2>Stanley Buzek</h2>
+			<p>Caldwell, Texas</p>
+			<p><a href={`mailto:${site.email}`}>{site.email}</a></p>
+		</div>
+		<div>
+			<h2>Follow along</h2>
+			<ul class="social-links">
+				{site.socials.map((social) => <li><a href={social.url} target="_blank" rel="noreferrer">{social.label}</a></li>)}
+			</ul>
+		</div>
+	</section>
+</SiteLayout>

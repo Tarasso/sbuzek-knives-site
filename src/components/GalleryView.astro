@@ -1,0 +1,16 @@
+---
+import "../styles/global.css";
+interface Props {
+	mode: "featured" | "gallery" | "available";
+}
+const { mode } = Astro.props;
+const loadingLabel = mode === "available" ? "Checking availability..." : "Loading knives...";
+---
+
+<div class="catalog-view" data-catalog-view={mode} aria-live="polite" aria-busy="true">
+	<p class="catalog-message">{loadingLabel}</p>
+</div>
+
+<script>
+	import "../lib/catalog-view.ts";
+</script>

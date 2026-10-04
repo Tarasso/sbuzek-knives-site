@@ -1,0 +1,24 @@
+{
+  "routes": [
+    { "route": "/admin", "allowedRoles": ["admin"] },
+    { "route": "/admin/*", "allowedRoles": ["admin"] },
+    { "route": "/api/admin/*", "allowedRoles": ["admin"] },
+    { "route": "/login", "rewrite": "/.auth/login/aad" },
+    { "route": "/logout", "redirect": "/.auth/logout?post_logout_redirect_uri=/" },
+    { "route": "/.auth/login/github", "statusCode": 404 },
+    { "route": "/gallery-copy", "redirect": "/gallery", "statusCode": 301 },
+    { "route": "/knife/*", "rewrite": "/knife/index.html" }
+  ],
+  "responseOverrides": {
+    "401": { "redirect": "/.auth/login/aad?post_login_redirect_uri=/admin", "statusCode": 302 },
+    "404": { "rewrite": "/404.html" }
+  },
+  "globalHeaders": {
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: blob: https://*.blob.core.windows.net; connect-src 'self' https://*.blob.core.windows.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin"
+  },
+  "mimeTypes": {
+    ".json": "application/json"
+  }
+}
