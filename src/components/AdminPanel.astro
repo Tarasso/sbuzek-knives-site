@@ -1,0 +1,74 @@
+<section class="admin-page" data-admin-panel>
+	<div class="admin-bar">
+		<p>Signed in as <strong data-user-name>Checking sign-in...</strong></p>
+		<div class="admin-bar-links">
+			<a href="/">View site</a>
+			<a href="/logout">Sign out</a>
+		</div>
+	</div>
+
+	<section class="admin-section" data-list-view>
+		<div class="admin-heading">
+			<div>
+				<p class="eyebrow">Catalog</p>
+				<h1>My knives</h1>
+			</div>
+			<button class="button-link" type="button" data-add-knife>Add a knife</button>
+		</div>
+		<p class="admin-message" data-list-message aria-live="polite">Loading your knives...</p>
+		<ul class="admin-piece-list" data-piece-list></ul>
+	</section>
+
+	<section class="admin-section" data-form-view hidden>
+		<div class="admin-heading">
+			<div>
+				<p class="eyebrow">New catalog entry</p>
+				<h1>Add a knife</h1>
+			</div>
+		</div>
+		<form class="knife-form" data-knife-form>
+			<label class="admin-field">
+				<span>Title</span>
+				<input name="title" maxlength="120" required autocomplete="off" />
+			</label>
+			<label class="admin-field">
+				<span>Description</span>
+				<textarea name="description" maxlength="4000" rows="6"></textarea>
+			</label>
+			<fieldset class="admin-field photo-field">
+				<legend>Photos <span class="field-hint">Up to 12</span></legend>
+				<label class="file-picker">
+					<span>Add photos</span>
+					<input data-photo-input type="file" accept="image/*" multiple />
+				</label>
+				<ol class="selected-photo-list" data-selected-photos></ol>
+			</fieldset>
+			<label class="admin-field">
+				<span>Show as</span>
+				<select name="status">
+					<option value="gallery">On site</option>
+					<option value="available">For sale</option>
+				</select>
+			</label>
+			<label class="admin-field" data-price-field hidden>
+				<span>Price / note <span class="field-hint">Optional</span></span>
+				<input name="priceNote" maxlength="200" autocomplete="off" placeholder="Email for price" />
+			</label>
+			<label class="check-field">
+				<input name="featured" type="checkbox" />
+				<span>Show on home page</span>
+			</label>
+			<div class="upload-status" data-upload-status role="status" aria-live="polite" hidden>
+				<p data-upload-message></p>
+				<progress max="100" value="0" data-upload-progress></progress>
+			</div>
+			<p class="admin-message admin-error" data-form-error role="alert" hidden></p>
+			<div class="form-actions">
+				<button class="button-link" type="submit" data-save-button>Save knife</button>
+				<button class="quiet-button" type="button" data-cancel>Cancel</button>
+			</div>
+		</form>
+	</section>
+</section>
+
+<script src="../lib/admin.ts"></script>
