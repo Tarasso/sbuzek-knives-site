@@ -109,10 +109,18 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; }
 .admin-message { color: var(--muted); font-size: 16px; line-height: 1.6; }
 .admin-error { color: #8e392e; }
 .admin-piece-list, .selected-photo-list { margin: 0; padding: 0; list-style: none; }
+.admin-order-controls { display: flex; min-height: 50px; align-items: center; justify-content: space-between; gap: 16px; margin: 16px 0 4px; }
+.admin-order-controls .admin-message { margin: 0; }
 .admin-piece-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .admin-piece-row img { display: block; width: 100px; height: 76px; object-fit: contain; background: #e4e3dc; }
 .admin-piece-details h2 { margin: 0 0 6px; font-size: 18px; }
 .admin-piece-details p { margin: 0; color: var(--green); font-size: 14px; }
+.admin-piece-actions { display: flex; align-items: center; justify-content: end; gap: 8px; flex-wrap: wrap; }
+.admin-piece-drag-handle { display: inline-flex; min-height: 42px; align-items: center; padding: 8px 10px; border: 1px dashed var(--line); color: var(--muted); font-size: 14px; cursor: grab; touch-action: none; }
+.admin-piece-drag-handle:active { cursor: grabbing; }
+.admin-piece-row.is-dragging { opacity: 0.45; }
+.admin-piece-row.is-drop-target { box-shadow: inset 0 3px var(--green); }
+.admin-piece-row.is-drop-after { box-shadow: inset 0 -3px var(--green); }
 .knife-form { width: min(100%, 680px); }
 .admin-field { display: grid; gap: 9px; margin: 0 0 24px; padding: 0; border: 0; color: var(--ink); font-size: 16px; font-weight: 600; }
 .admin-field > span, .admin-field legend { font-size: 16px; font-weight: 600; }
@@ -131,11 +139,6 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; }
 .photo-alt-field { display: grid; gap: 5px; color: var(--ink); font-size: 13px; }
 .photo-alt-field input { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #aaa99f; border-radius: 0; background: #fffefa; color: var(--ink); font: inherit; font-weight: 400; }
 .photo-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: end; }
-.photo-drag-handle { display: inline-flex; min-height: 42px; align-items: center; padding: 8px 10px; border: 1px dashed var(--line); color: var(--muted); font-size: 14px; cursor: grab; touch-action: none; }
-.photo-drag-handle:active { cursor: grabbing; }
-.selected-photo-row.is-dragging { opacity: 0.45; }
-.selected-photo-row.is-drop-target { box-shadow: inset 0 3px var(--green); }
-.selected-photo-row.is-drop-after { box-shadow: inset 0 -3px var(--green); }
 .quiet-button { min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; font-size: 14px; cursor: pointer; }
 .quiet-button:disabled { opacity: 0.45; cursor: default; }
 .danger-button { min-height: 50px; padding: 8px 14px; border: 1px solid #9c3d32; background: transparent; color: #8e392e; font: inherit; font-size: 14px; cursor: pointer; }
@@ -160,8 +163,9 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; }
 	.admin-heading { align-items: flex-start; flex-direction: column; }
 	.admin-heading .button-link { min-height: 48px; }
 	.admin-heading-actions { width: 100%; }
-	.admin-piece-row { grid-template-columns: 72px minmax(0, 1fr) auto; gap: 12px; }
+	.admin-piece-row { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; }
 	.admin-piece-row img { width: 72px; height: 58px; }
+	.admin-piece-actions { grid-column: 1 / -1; justify-content: flex-start; }
 	.selected-photo-row { grid-template-columns: 62px minmax(0, 1fr); }
 	.selected-photo-row img { width: 62px; height: 52px; }
 	.photo-actions { grid-column: 1 / -1; justify-content: flex-start; }

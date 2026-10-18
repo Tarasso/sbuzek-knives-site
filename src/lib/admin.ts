@@ -42,9 +42,12 @@ if (panel) {
 	const bulkStatus = panel.querySelector<HTMLElement>("[data-bulk-status]")!;
 	const bulkMessage = panel.querySelector<HTMLElement>("[data-bulk-message]")!;
 	const bulkProgress = panel.querySelector<HTMLProgressElement>("[data-bulk-progress]")!;
+	const orderSaveButton = panel.querySelector<HTMLButtonElement>("[data-order-save]")!;
+	const orderMessage = panel.querySelector<HTMLElement>("[data-order-message]")!;
 	const mediaBaseUrl = import.meta.env.PUBLIC_MEDIA_BASE_URL || "";
 	let selectedPhotos: SelectedPhoto[] = [];
 	let editingPieceId: string | undefined;
+	let hasPendingOrder = false;
 	let catalog: Catalog = { schemaVersion: 1, updatedAt: "", pieces: [] };
 
 	function setError(message: string): void {
@@ -80,6 +83,7 @@ if (panel) {
 		for (const piece of ordered) {
 			const item = document.createElement("li");
 			item.className = "admin-piece-row";
+			item.dataset.pieceId = piece.id;
 			const photo = piece.photos[0];
 			if (photo) {
 				const image = document.createElement("img");
@@ -97,13 +101,70 @@ if (panel) {
 			status.textContent = piece.status === "available" ? "For sale" : piece.status === "hidden" ? "Hidden" : "On site";
 			details.append(title, status);
 			item.append(details);
+			const actions = document.createElement("div");
+			actions.className = "admin-piece-actions";
+			const dragHandle = document.createElement("span");
+			dragHandle.className = "admin-piece-drag-handle";
+			dragHandle.textContent = "Drag";
+			dragHandle.draggable = true;
+			dragHandle.title = `Drag ${piece.title} to reorder`;
+			actions.append(dragHandle);
+			for (const [action, text, disabled] of [
+				["top", "Send to top", ordered[0].id === piece.id],
+				["bottom", "Send to bottom", ordered[ordered.length - 1].id === piece.id],
+			] as const) {
+				const button = document.createElement("button");
+				button.type = "button";
+				button.className = "quiet-button";
+				button.textContent = text;
+				button.dataset.orderAction = action;
+				button.dataset.pieceId = piece.id;
+				button.disabled = disabled;
+				actions.append(button);
+			}
 			const editButton = document.createElement("button");
 			editButton.type = "button";
 			editButton.className = "quiet-button";
 			editButton.textContent = "Edit";
 			editButton.dataset.editPiece = piece.id;
-			item.append(editButton);
+			actions.append(editButton);
+			item.append(actions);
 			pieceList.append(item);
+		}
+		orderSaveButton.disabled = !hasPendingOrder;
+	}
+
+	function reorderPieces(fromIndex: number, toIndex: number): void {
+		const ordered = [...catalog.pieces].sort((first, second) => first.sortOrder - second.sortOrder);
+		if (fromIndex < 0 || fromIndex >= ordered.length || toIndex < 0 || toIndex >= ordered.length || fromIndex === toIndex) return;
+		const [piece] = ordered.splice(fromIndex, 1);
+		ordered.splice(toIndex, 0, piece);
+		catalog.pieces = ordered.map((item, sortOrder) => ({ ...item, sortOrder }));
+		hasPendingOrder = true;
+		orderMessage.textContent = "Unsaved gallery order.";
+		renderPieces();
+	}
+
+	async function saveGalleryOrder(): Promise<void> {
+		if (!hasPendingOrder) return;
+		orderSaveButton.disabled = true;
+		orderMessage.textContent = "Saving gallery order...";
+		try {
+			const ordered = [...catalog.pieces].sort((first, second) => first.sortOrder - second.sortOrder);
+			const response = await fetch("/api/catalog/order", {
+				method: "PUT",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ pieceIds: ordered.map((piece) => piece.id) }),
+			});
+			if (!response.ok) throw new Error(await responseMessage(response));
+			const saved = (await response.json()) as { updatedAt: string };
+			catalog.updatedAt = saved.updatedAt;
+			hasPendingOrder = false;
+			orderMessage.textContent = "Gallery order saved.";
+			renderPieces();
+		} catch (error) {
+			orderMessage.textContent = error instanceof Error ? error.message : "The gallery order could not be saved.";
+			orderSaveButton.disabled = !hasPendingOrder;
 		}
 	}
 
@@ -168,7 +229,6 @@ if (panel) {
 		for (const [index, selected] of selectedPhotos.entries()) {
 			const item = document.createElement("li");
 			item.className = "selected-photo-row";
-			item.dataset.photoRowIndex = String(index);
 			const image = document.createElement("img");
 			image.src = selected.previewUrl;
 			image.alt = `Selected photo ${index + 1}`;
@@ -189,15 +249,9 @@ if (panel) {
 			details.append(label, altLabel);
 			const actions = document.createElement("div");
 			actions.className = "photo-actions";
-			const dragHandle = document.createElement("span");
-			dragHandle.className = "photo-drag-handle";
-			dragHandle.textContent = "Drag";
-			dragHandle.draggable = true;
-			dragHandle.title = `Drag photo ${index + 1} to reorder`;
-			actions.append(dragHandle);
 			for (const [action, text, disabled] of [
-				["top", "Send to top", index === 0],
-				["bottom", "Send to bottom", index === selectedPhotos.length - 1],
+				["up", "Move up", index === 0],
+				["down", "Move down", index === selectedPhotos.length - 1],
 				["remove", "Remove", false],
 			] as const) {
 				const button = document.createElement("button");
@@ -212,13 +266,6 @@ if (panel) {
 			item.append(image, details, actions);
 			selectedPhotoList.append(item);
 		}
-	}
-
-	function moveSelectedPhoto(from: number, to: number): void {
-		if (from < 0 || from >= selectedPhotos.length || to < 0 || to >= selectedPhotos.length || from === to) return;
-		const [selected] = selectedPhotos.splice(from, 1);
-		selectedPhotos.splice(to, 0, selected);
-		renderSelectedPhotos();
 	}
 
 	function toJpeg(bitmap: ImageBitmap, edge: number, quality: number): Promise<{ file: File; width: number; height: number }> {
@@ -393,7 +440,10 @@ if (panel) {
 			const savedPiece = (await saveResponse.json()) as Piece;
 			const existingIndex = catalog.pieces.findIndex((piece) => piece.id === savedPiece.id);
 			if (existingIndex === -1) catalog.pieces.unshift(savedPiece);
-			else catalog.pieces[existingIndex] = savedPiece;
+			else catalog.pieces[existingIndex] = {
+				...savedPiece,
+				sortOrder: hasPendingOrder ? catalog.pieces[existingIndex].sortOrder : savedPiece.sortOrder,
+			};
 			form.reset();
 			clearSelectedPhotos();
 			editingPieceId = undefined;
@@ -549,59 +599,69 @@ if (panel) {
 		if (action === "remove") {
 			URL.revokeObjectURL(selectedPhotos[index].previewUrl);
 			selectedPhotos.splice(index, 1);
-			renderSelectedPhotos();
-		} else if (action === "top") {
-			moveSelectedPhoto(index, 0);
-		} else if (action === "bottom") {
-			moveSelectedPhoto(index, selectedPhotos.length - 1);
+		} else {
+			const target = action === "up" ? index - 1 : index + 1;
+			[selectedPhotos[index], selectedPhotos[target]] = [selectedPhotos[target], selectedPhotos[index]];
 		}
-	});
-	selectedPhotoList.addEventListener("dragstart", (event) => {
-		const handle = (event.target as HTMLElement).closest<HTMLElement>(".photo-drag-handle");
-		if (!handle || !event.dataTransfer) return;
-		const row = handle.closest<HTMLElement>("[data-photo-row-index]");
-		if (!row) return;
-		event.dataTransfer.effectAllowed = "move";
-		event.dataTransfer.setData("text/plain", row.dataset.photoRowIndex || "");
-		row.classList.add("is-dragging");
-	});
-	selectedPhotoList.addEventListener("dragover", (event) => {
-		const row = (event.target as HTMLElement).closest<HTMLElement>("[data-photo-row-index]");
-		if (!row || !event.dataTransfer) return;
-		event.preventDefault();
-		event.dataTransfer.dropEffect = "move";
-		selectedPhotoList.querySelectorAll(".is-drop-target, .is-drop-after").forEach((target) => {
-			target.classList.remove("is-drop-target", "is-drop-after");
-		});
-		const dropAfter = event.clientY >= row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
-		row.classList.add(dropAfter ? "is-drop-after" : "is-drop-target");
-	});
-	selectedPhotoList.addEventListener("drop", (event) => {
-		const row = (event.target as HTMLElement).closest<HTMLElement>("[data-photo-row-index]");
-		if (!row || !event.dataTransfer) return;
-		event.preventDefault();
-		const from = Number(event.dataTransfer.getData("text/plain"));
-		const targetIndex = Number(row.dataset.photoRowIndex);
-		const bounds = row.getBoundingClientRect();
-		let to = targetIndex + (event.clientY >= bounds.top + bounds.height / 2 ? 1 : 0);
-		if (from < to) to -= 1;
-		moveSelectedPhoto(from, to);
-	});
-	selectedPhotoList.addEventListener("dragend", () => {
-		selectedPhotoList.querySelectorAll(".is-dragging, .is-drop-target, .is-drop-after").forEach((row) => {
-			row.classList.remove("is-dragging", "is-drop-target", "is-drop-after");
-		});
+		renderSelectedPhotos();
 	});
 	selectedPhotoList.addEventListener("input", (event) => {
 		const input = (event.target as HTMLElement).closest<HTMLInputElement>("[data-photo-alt-index]");
 		if (input) selectedPhotos[Number(input.dataset.photoAltIndex)].alt = input.value;
 	});
 	pieceList.addEventListener("click", (event) => {
-		const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-edit-piece]");
-		if (!button) return;
-		const piece = catalog.pieces.find((candidate) => candidate.id === button.dataset.editPiece);
+		const target = event.target as HTMLElement;
+		const orderButton = target.closest<HTMLButtonElement>("[data-order-action]");
+		if (orderButton) {
+			const ordered = [...catalog.pieces].sort((first, second) => first.sortOrder - second.sortOrder);
+			const from = ordered.findIndex((piece) => piece.id === orderButton.dataset.pieceId);
+			const to = orderButton.dataset.orderAction === "top" ? 0 : ordered.length - 1;
+			reorderPieces(from, to);
+			return;
+		}
+		const editButton = target.closest<HTMLButtonElement>("[data-edit-piece]");
+		if (!editButton) return;
+		const piece = catalog.pieces.find((candidate) => candidate.id === editButton.dataset.editPiece);
 		if (piece) startEditingPiece(piece);
 	});
+	pieceList.addEventListener("dragstart", (event) => {
+		const handle = (event.target as HTMLElement).closest<HTMLElement>(".admin-piece-drag-handle");
+		if (!handle || !event.dataTransfer) return;
+		const row = handle.closest<HTMLElement>("[data-piece-id]");
+		if (!row) return;
+		event.dataTransfer.effectAllowed = "move";
+		event.dataTransfer.setData("text/plain", row.dataset.pieceId || "");
+		row.classList.add("is-dragging");
+	});
+	pieceList.addEventListener("dragover", (event) => {
+		const row = (event.target as HTMLElement).closest<HTMLElement>("[data-piece-id]");
+		if (!row || !event.dataTransfer) return;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = "move";
+		pieceList.querySelectorAll(".is-drop-target, .is-drop-after").forEach((target) => {
+			target.classList.remove("is-drop-target", "is-drop-after");
+		});
+		const bounds = row.getBoundingClientRect();
+		row.classList.add(event.clientY >= bounds.top + bounds.height / 2 ? "is-drop-after" : "is-drop-target");
+	});
+	pieceList.addEventListener("drop", (event) => {
+		const row = (event.target as HTMLElement).closest<HTMLElement>("[data-piece-id]");
+		if (!row || !event.dataTransfer) return;
+		event.preventDefault();
+		const ordered = [...catalog.pieces].sort((first, second) => first.sortOrder - second.sortOrder);
+		const from = ordered.findIndex((piece) => piece.id === event.dataTransfer!.getData("text/plain"));
+		const targetIndex = ordered.findIndex((piece) => piece.id === row.dataset.pieceId);
+		const bounds = row.getBoundingClientRect();
+		let to = targetIndex + (event.clientY >= bounds.top + bounds.height / 2 ? 1 : 0);
+		if (from < to) to -= 1;
+		reorderPieces(from, to);
+	});
+	pieceList.addEventListener("dragend", () => {
+		pieceList.querySelectorAll(".is-dragging, .is-drop-target, .is-drop-after").forEach((row) => {
+			row.classList.remove("is-dragging", "is-drop-target", "is-drop-after");
+		});
+	});
+	orderSaveButton.addEventListener("click", () => void saveGalleryOrder());
 	form.addEventListener("submit", (event) => void saveKnife(event));
 	biographyForm.addEventListener("submit", (event) => void saveBiography(event));
 	void loadCatalog();

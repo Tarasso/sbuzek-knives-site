@@ -392,6 +392,58 @@ async function saveSiteContentHandler(request: HttpRequest, context: InvocationC
 	}
 }
 
+async function saveCatalogOrderHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+	const denied = adminError(request);
+	if (denied) return denied;
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return response(400, { error: "Gallery order must be valid JSON." });
+	}
+	if (!body || typeof body !== "object" || Array.isArray(body)) return response(400, { error: "Gallery order is invalid." });
+	const input = body as Record<string, unknown>;
+	if (Object.keys(input).some((key) => key !== "pieceIds") || !Array.isArray(input.pieceIds)) {
+		return response(400, { error: "Gallery order must contain a list of knife IDs." });
+	}
+	const pieceIds = input.pieceIds;
+	if (!pieceIds.every(isUlid) || new Set(pieceIds).size !== pieceIds.length) {
+		return response(400, { error: "Gallery order contains an invalid or repeated knife ID." });
+	}
+
+	try {
+		const container = mediaContainer();
+		const catalogBlob = container.getBlockBlobClient("catalog.json");
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			const { catalog, etag } = await readCatalog(container);
+			const requestedIds = new Set(pieceIds);
+			if (pieceIds.length !== catalog.pieces.length || catalog.pieces.some((piece) => !requestedIds.has(piece.id))) {
+				return response(409, { error: "The catalog changed since it was loaded. Reload the admin page and try again." });
+			}
+			const piecesById = new Map(catalog.pieces.map((piece) => [piece.id, piece]));
+			const now = new Date().toISOString();
+			const updated: Catalog = {
+				...catalog,
+				updatedAt: now,
+				pieces: pieceIds.map((id, sortOrder) => ({ ...piecesById.get(id)!, sortOrder })),
+			};
+			try {
+				await catalogBlob.uploadData(Buffer.from(JSON.stringify(updated)), {
+					blobHTTPHeaders: { blobContentType: "application/json", blobCacheControl: "public, max-age=60" },
+					conditions: { ifMatch: etag },
+				});
+				return response(200, { updatedAt: now });
+			} catch (error) {
+				if ((error as { statusCode?: number }).statusCode !== 412 || attempt === 2) throw error;
+			}
+		}
+		return response(409, { error: "The catalog changed repeatedly. Please try saving again." });
+	} catch (error) {
+		context.error("Could not save the gallery order.", error);
+		return response(500, { error: "The gallery order could not be saved." });
+	}
+}
+
 app.http("adminCatalog", {
 	methods: ["GET"],
 	authLevel: "anonymous",
@@ -439,4 +491,11 @@ app.http("adminSiteContent", {
 	authLevel: "anonymous",
 	route: "site-content",
 	handler: saveSiteContentHandler,
+});
+
+app.http("adminCatalogOrder", {
+	methods: ["PUT"],
+	authLevel: "anonymous",
+	route: "catalog/order",
+	handler: saveCatalogOrderHandler,
 });
