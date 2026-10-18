@@ -13,14 +13,14 @@ function makePieceCard(piece: Piece): HTMLElement {
 	const link = document.createElement("a");
 	link.className = "piece-image-link";
 	link.href = `/knife/${encodeURIComponent(piece.slug)}`;
-	link.setAttribute("aria-label", `View ${piece.title}`);
+	link.setAttribute("aria-label", piece.status === "available" ? `View ${piece.title}` : "View a knife from the collection");
 
 	const photo = piece.photos[0];
 	if (photo) {
 		const image = document.createElement("img");
 		image.className = "piece-image";
 		image.src = mediaUrl(photo.thumb);
-		image.alt = photo.alt || `${piece.title} - photo 1`;
+		image.alt = photo.alt || (piece.status === "available" ? `${piece.title} - photo 1` : "Handmade knife photo 1");
 		image.width = photo.width;
 		image.height = photo.height;
 		image.loading = "lazy";
@@ -32,21 +32,23 @@ function makePieceCard(piece: Piece): HTMLElement {
 		link.append(placeholder);
 	}
 
-	const caption = document.createElement("div");
-	caption.className = "piece-caption";
-	const title = document.createElement("h3");
-	const titleLink = document.createElement("a");
-	titleLink.href = link.href;
-	titleLink.textContent = piece.title;
-	title.append(titleLink);
-	caption.append(title);
 	if (piece.status === "available") {
+		const caption = document.createElement("div");
+		caption.className = "piece-caption";
+		const title = document.createElement("h3");
+		const titleLink = document.createElement("a");
+		titleLink.href = link.href;
+		titleLink.textContent = piece.title;
+		title.append(titleLink);
+		caption.append(title);
 		const note = document.createElement("p");
 		note.className = "price-note";
 		note.textContent = piece.priceNote || "Available - email to inquire";
 		caption.append(note);
+		article.append(link, caption);
+	} else {
+		article.append(link);
 	}
-	article.append(link, caption);
 	return article;
 }
 

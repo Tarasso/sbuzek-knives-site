@@ -22,7 +22,7 @@ function renderPiece(container: HTMLElement, piece: Piece): void {
 	for (const [index, photo] of piece.photos.entries()) {
 		const image = document.createElement("img");
 		image.src = mediaUrl(photo.display);
-		image.alt = photo.alt || `${piece.title} - photo ${index + 1}`;
+		image.alt = photo.alt || (piece.status === "available" ? `${piece.title} - photo ${index + 1}` : `Handmade knife photo ${index + 1}`);
 		image.width = photo.width;
 		image.height = photo.height;
 		image.loading = index === 0 ? "eager" : "lazy";
@@ -34,16 +34,22 @@ function renderPiece(container: HTMLElement, piece: Piece): void {
 	const eyebrow = document.createElement("p");
 	eyebrow.className = "eyebrow";
 	eyebrow.textContent = piece.status === "available" ? "Available" : "From the collection";
-	const heading = document.createElement("h1");
-	heading.textContent = piece.title;
-	const description = document.createElement("p");
-	description.className = "piece-description";
-	description.textContent = piece.description;
 	const inquire = document.createElement("a");
 	inquire.className = "button-link";
-	inquire.href = `mailto:${email}?subject=${encodeURIComponent(`Question about ${piece.title}`)}`;
+	const subject = encodeURIComponent("Question about a knife");
+	const body = encodeURIComponent(`I'm interested in this knife:\n${window.location.href}`);
+	inquire.href = `mailto:${email}?subject=${subject}&body=${body}`;
 	inquire.textContent = "Inquire about this knife";
-	details.append(eyebrow, heading, description, inquire);
+	details.append(eyebrow);
+	if (piece.status === "available") {
+		const heading = document.createElement("h1");
+		heading.textContent = piece.title;
+		const description = document.createElement("p");
+		description.className = "piece-description";
+		description.textContent = piece.description;
+		details.append(heading, description);
+	}
+	details.append(inquire);
 	container.replaceChildren(gallery, details);
 	container.setAttribute("aria-busy", "false");
 }
