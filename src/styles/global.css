@@ -65,10 +65,18 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; }
 .piece-caption h3 { margin: 0; overflow-wrap: anywhere; font-size: 19px; line-height: 1.5; }
 .piece-caption h3 a { text-decoration: none; }
 .price-note { margin: 7px 0 0; color: var(--green); font-size: 14px; }
-.contact-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 50px; padding: 56px 0 100px; }
+.contact-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 50px; padding: 56px 0 48px; }
 .contact-content h2 { margin: 0 0 18px; font-size: 25px; }
 .contact-content p, .social-links { color: var(--muted); font-size: 17px; line-height: 1.8; }
 .social-links { margin: 0; padding-left: 20px; }
+.contact-address { margin: 0 0 16px; color: var(--muted); font-size: 17px; font-style: normal; line-height: 1.8; }
+.contact-address span { display: block; }
+.contact-map-section { padding-bottom: 64px; }
+.contact-map-section iframe { display: block; width: 100%; min-height: 260px; aspect-ratio: 16 / 7; border: 1px solid var(--line); }
+.policy-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 50px; padding: 0 0 100px; }
+.policy-block h2 { margin: 0 0 20px; font-size: 25px; }
+.policy-block h3 { margin: 0 0 12px; font-size: 19px; }
+.policy-block p { margin: 0 0 16px; color: var(--muted); font-size: 16px; line-height: 1.8; }
 .knife-detail { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(270px, 0.85fr); align-items: start; gap: clamp(32px, 7vw, 88px); padding: 60px 0 100px; }
 .detail-photos { display: grid; min-width: 0; gap: 14px; }
 .detail-photos img { display: block; width: 100%; max-width: 100%; height: auto; background: #e4e3dc; }
@@ -162,6 +170,9 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 400; }
 	.catalog-section { padding: 44px 0 64px; }
 	.page-heading { padding: 58px 0 36px; }
 	.contact-content { grid-template-columns: 1fr; gap: 34px; padding: 42px 0 72px; }
+	.policy-content { grid-template-columns: 1fr; gap: 34px; padding-bottom: 72px; }
+	.contact-map-section { padding-bottom: 46px; }
+	.contact-map-section iframe { min-height: 240px; aspect-ratio: 4 / 3; }
 	.knife-detail { grid-template-columns: minmax(0, 1fr); padding: 34px 0 70px; }
 	.detail-copy { position: static; grid-row: 1; }
 	.site-footer { align-items: flex-start; flex-direction: column; justify-content: center; padding: 22px 0; gap: 8px; }

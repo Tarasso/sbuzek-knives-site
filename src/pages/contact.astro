@@ -9,10 +9,13 @@ import site from "../content/site.json";
 		<h1>Contact</h1>
 		<p>For questions about a knife, please get in touch directly.</p>
 	</section>
-	<section class="contact-content">
+	<section class="contact-content" aria-label="Contact details">
 		<div>
 			<h2>Stanley Buzek</h2>
-			<p>Caldwell, Texas</p>
+			<address class="contact-address">
+				{site.mailingAddress.map((line) => <span>{line}</span>)}
+			</address>
+			<p><a href={`tel:${site.phone.replace(/[^\d+]/g, "")}`}>{site.phone}</a></p>
 			<p><a href={`mailto:${site.email}`}>{site.email}</a></p>
 		</div>
 		<div>
@@ -21,5 +24,28 @@ import site from "../content/site.json";
 				{site.socials.map((social) => <li><a href={social.url} target="_blank" rel="noreferrer">{social.label}</a></li>)}
 			</ul>
 		</div>
+	</section>
+	<section class="contact-map-section" aria-label="Map">
+		<iframe
+			title="Map showing the Caldwell, Texas mailing address"
+			src={`https://www.google.com/maps?q=${encodeURIComponent(site.mailingAddress.join(", "))}&output=embed`}
+			loading="lazy"
+			referrerpolicy="no-referrer-when-downgrade"
+			allowfullscreen
+		></iframe>
+	</section>
+	<section class="policy-content" aria-label="Policies">
+		<section class="policy-block">
+			<h2>Warrantee</h2>
+			<h3>Return Policy</h3>
+			<p>All knives are sold with an unconditional five day return privilege to give purchasers the opportunity to reassure themselves of the condition and mechanical function of the knife purchased. Purchase price, less shipping costs, will be refunded upon receipt of the knife in the same condition it was shipped to the purchaser.</p>
+			<p>Five days after the buyer receives the knife, all sales are final. I guarantee my work to be free from mechanical defects as long as I remain able to make knives. This does not include natural handle materials such as stag, bone, wood, pearl and ivory, which may shrink, crack or discolor with change in temperature, humidity or age.</p>
+		</section>
+		<section class="policy-block">
+			<h2>Payment &amp; Shipping</h2>
+			<p>All knives will be shipped by USPS Priority Mail Signature Required. If you wish different shipping I will charge actual cost.</p>
+			<p>I will accept PAYPAL, USPS Money Order, Personal Checks</p>
+			<p>(please allow 7 days for checks &amp; M.O.'s to clear before shipping)</p>
+		</section>
 	</section>
 </SiteLayout>
