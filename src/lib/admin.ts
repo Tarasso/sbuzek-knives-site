@@ -168,6 +168,7 @@ if (panel) {
 		for (const [index, selected] of selectedPhotos.entries()) {
 			const item = document.createElement("li");
 			item.className = "selected-photo-row";
+			item.dataset.photoRowIndex = String(index);
 			const image = document.createElement("img");
 			image.src = selected.previewUrl;
 			image.alt = `Selected photo ${index + 1}`;
@@ -188,9 +189,15 @@ if (panel) {
 			details.append(label, altLabel);
 			const actions = document.createElement("div");
 			actions.className = "photo-actions";
+			const dragHandle = document.createElement("span");
+			dragHandle.className = "photo-drag-handle";
+			dragHandle.textContent = "Drag";
+			dragHandle.draggable = true;
+			dragHandle.title = `Drag photo ${index + 1} to reorder`;
+			actions.append(dragHandle);
 			for (const [action, text, disabled] of [
-				["up", "Move up", index === 0],
-				["down", "Move down", index === selectedPhotos.length - 1],
+				["top", "Send to top", index === 0],
+				["bottom", "Send to bottom", index === selectedPhotos.length - 1],
 				["remove", "Remove", false],
 			] as const) {
 				const button = document.createElement("button");
@@ -205,6 +212,13 @@ if (panel) {
 			item.append(image, details, actions);
 			selectedPhotoList.append(item);
 		}
+	}
+
+	function moveSelectedPhoto(from: number, to: number): void {
+		if (from < 0 || from >= selectedPhotos.length || to < 0 || to >= selectedPhotos.length || from === to) return;
+		const [selected] = selectedPhotos.splice(from, 1);
+		selectedPhotos.splice(to, 0, selected);
+		renderSelectedPhotos();
 	}
 
 	function toJpeg(bitmap: ImageBitmap, edge: number, quality: number): Promise<{ file: File; width: number; height: number }> {
@@ -535,11 +549,48 @@ if (panel) {
 		if (action === "remove") {
 			URL.revokeObjectURL(selectedPhotos[index].previewUrl);
 			selectedPhotos.splice(index, 1);
-		} else {
-			const target = action === "up" ? index - 1 : index + 1;
-			[selectedPhotos[index], selectedPhotos[target]] = [selectedPhotos[target], selectedPhotos[index]];
+			renderSelectedPhotos();
+		} else if (action === "top") {
+			moveSelectedPhoto(index, 0);
+		} else if (action === "bottom") {
+			moveSelectedPhoto(index, selectedPhotos.length - 1);
 		}
-		renderSelectedPhotos();
+	});
+	selectedPhotoList.addEventListener("dragstart", (event) => {
+		const handle = (event.target as HTMLElement).closest<HTMLElement>(".photo-drag-handle");
+		if (!handle || !event.dataTransfer) return;
+		const row = handle.closest<HTMLElement>("[data-photo-row-index]");
+		if (!row) return;
+		event.dataTransfer.effectAllowed = "move";
+		event.dataTransfer.setData("text/plain", row.dataset.photoRowIndex || "");
+		row.classList.add("is-dragging");
+	});
+	selectedPhotoList.addEventListener("dragover", (event) => {
+		const row = (event.target as HTMLElement).closest<HTMLElement>("[data-photo-row-index]");
+		if (!row || !event.dataTransfer) return;
+		event.preventDefault();
+		event.dataTransfer.dropEffect = "move";
+		selectedPhotoList.querySelectorAll(".is-drop-target, .is-drop-after").forEach((target) => {
+			target.classList.remove("is-drop-target", "is-drop-after");
+		});
+		const dropAfter = event.clientY >= row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2;
+		row.classList.add(dropAfter ? "is-drop-after" : "is-drop-target");
+	});
+	selectedPhotoList.addEventListener("drop", (event) => {
+		const row = (event.target as HTMLElement).closest<HTMLElement>("[data-photo-row-index]");
+		if (!row || !event.dataTransfer) return;
+		event.preventDefault();
+		const from = Number(event.dataTransfer.getData("text/plain"));
+		const targetIndex = Number(row.dataset.photoRowIndex);
+		const bounds = row.getBoundingClientRect();
+		let to = targetIndex + (event.clientY >= bounds.top + bounds.height / 2 ? 1 : 0);
+		if (from < to) to -= 1;
+		moveSelectedPhoto(from, to);
+	});
+	selectedPhotoList.addEventListener("dragend", () => {
+		selectedPhotoList.querySelectorAll(".is-dragging, .is-drop-target, .is-drop-after").forEach((row) => {
+			row.classList.remove("is-dragging", "is-drop-target", "is-drop-after");
+		});
 	});
 	selectedPhotoList.addEventListener("input", (event) => {
 		const input = (event.target as HTMLElement).closest<HTMLInputElement>("[data-photo-alt-index]");
