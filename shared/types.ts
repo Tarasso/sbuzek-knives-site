@@ -31,5 +31,6 @@ export interface Piece {
 export interface Catalog {
 	schemaVersion: 1;
 	updatedAt: string;
+	biography?: string;
 	pieces: Piece[];
 }

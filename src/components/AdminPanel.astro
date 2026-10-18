@@ -1,11 +1,50 @@
+---
+import siteContent from "../content/site.json";
+---
+
 <section class="admin-page" data-admin-panel>
+	<section class="admin-section admin-login" data-login-view hidden>
+		<p class="eyebrow">Administrator</p>
+		<h1>Sign in</h1>
+		<form class="knife-form" data-password-form>
+			<label class="admin-field">
+				<span>Password</span>
+				<input name="password" type="password" minlength="20" required autocomplete="current-password" />
+			</label>
+			<p class="admin-message admin-error" data-login-error role="alert" hidden></p>
+			<div class="form-actions">
+				<button class="button-link" type="submit" data-password-submit>Sign in</button>
+				<a class="admin-login-link" href="/login">Use Microsoft sign-in</a>
+			</div>
+		</form>
+	</section>
+	<div data-admin-app hidden>
 	<div class="admin-bar">
 		<p>Signed in as <strong data-user-name>Checking sign-in...</strong></p>
 		<div class="admin-bar-links">
 			<a href="/">View site</a>
-			<a href="/logout">Sign out</a>
+			<button type="button" data-sign-out>Sign out</button>
 		</div>
 	</div>
+
+	<section class="admin-section" aria-labelledby="biography-form-title">
+		<div class="admin-heading">
+			<div>
+				<p class="eyebrow">Homepage</p>
+				<h1 id="biography-form-title">About Stanley</h1>
+			</div>
+		</div>
+		<form class="knife-form" data-biography-form>
+			<label class="admin-field">
+				<span>Biography</span>
+				<textarea name="biography" maxlength="12000" rows="14" required>{siteContent.biography}</textarea>
+			</label>
+			<p class="admin-message" data-biography-message aria-live="polite"></p>
+			<div class="form-actions">
+				<button class="button-link" type="submit" data-biography-save>Save biography</button>
+			</div>
+		</form>
+	</section>
 
 	<section class="admin-section" data-list-view>
 		<div class="admin-heading">
@@ -13,17 +52,27 @@
 				<p class="eyebrow">Catalog</p>
 				<h1>My knives</h1>
 			</div>
-			<button class="button-link" type="button" data-add-knife>Add a knife</button>
+			<div class="admin-heading-actions">
+				<label class="file-picker" data-folder-picker>
+					<span>Upload photo folder</span>
+					<input data-folder-input type="file" accept="image/*" multiple webkitdirectory />
+				</label>
+				<button class="button-link" type="button" data-add-knife>Add a knife</button>
+			</div>
 		</div>
 		<p class="admin-message" data-list-message aria-live="polite">Loading your knives...</p>
+		<div class="upload-status" data-bulk-status role="status" aria-live="polite" hidden>
+			<p data-bulk-message></p>
+			<progress max="100" value="0" data-bulk-progress></progress>
+		</div>
 		<ul class="admin-piece-list" data-piece-list></ul>
 	</section>
 
 	<section class="admin-section" data-form-view hidden>
 		<div class="admin-heading">
 			<div>
-				<p class="eyebrow">New catalog entry</p>
-				<h1>Add a knife</h1>
+				<p class="eyebrow" data-form-eyebrow>New catalog entry</p>
+				<h1 data-form-title>Add a knife</h1>
 			</div>
 		</div>
 		<form class="knife-form" data-knife-form>
@@ -48,6 +97,7 @@
 				<select name="status">
 					<option value="gallery">On site</option>
 					<option value="available">For sale</option>
+					<option value="hidden">Hidden</option>
 				</select>
 			</label>
 			<label class="admin-field" data-price-field hidden>
@@ -66,9 +116,11 @@
 			<div class="form-actions">
 				<button class="button-link" type="submit" data-save-button>Save knife</button>
 				<button class="quiet-button" type="button" data-cancel>Cancel</button>
+				<button class="danger-button" type="button" data-delete-piece hidden>Delete permanently</button>
 			</div>
 		</form>
 	</section>
+	</div>
 </section>
 
 <script src="../lib/admin.ts"></script>

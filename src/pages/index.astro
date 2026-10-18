@@ -1,6 +1,7 @@
 ---
 import GalleryView from "../components/GalleryView.astro";
 import SiteLayout from "../layouts/SiteLayout.astro";
+import siteContent from "../content/site.json";
 ---
 
 <SiteLayout title="S. Buzek Knives | Handmade knives from Caldwell, Texas" description="Handmade knives by Stanley Buzek of Caldwell, Texas.">
@@ -14,6 +15,14 @@ import SiteLayout from "../layouts/SiteLayout.astro";
 		</nav>
 	</section>
 
+	<section class="biography-section" aria-labelledby="biography-title">
+		<div class="biography-heading">
+			<p class="eyebrow">The maker</p>
+			<h2 id="biography-title">A life with knives</h2>
+		</div>
+		<p class="biography-copy" data-home-biography>{siteContent.biography}</p>
+	</section>
+
 	<section class="catalog-section" aria-labelledby="featured-title">
 		<div class="section-heading">
 			<div>
@@ -25,3 +34,5 @@ import SiteLayout from "../layouts/SiteLayout.astro";
 		<GalleryView mode="featured" />
 	</section>
 </SiteLayout>
+
+<script src="../lib/home-biography.ts"></script>

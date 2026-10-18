@@ -28,7 +28,7 @@ jobs:
       - run: npm ci --prefix api
       - run: npm run build --prefix api
 
-  build_and_deploy:
+  build_and_deploy_job:
     needs: validate
     if: vars.AZURE_STATIC_WEB_APPS_DEPLOY_ENABLED == 'true' && (github.event_name != 'pull_request' || github.event.action != 'closed')
     runs-on: ubuntu-latest
@@ -46,6 +46,8 @@ jobs:
           action: upload
           app_location: "/"
           api_location: "api"
+          api_language: "node"
+          api_version: "22"
           api_build_command: "npm run build"
           output_location: "dist"
           app_build_command: "npm run build"

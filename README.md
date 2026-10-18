@@ -8,7 +8,7 @@ Astro static site for Stanley Buzek Knives. Public pages are static; the gallery
 - `shared/types.ts` defines the catalog contract. `public/catalog.json` is the local fallback; production reads the seeded catalog from Blob Storage.
 - `infra/main.bicep` provisions the Free Static Web App, public-read `media` container, versioning, soft delete, CORS, and a $5 monthly resource-group budget alert.
 - The Azure resources are deployed, the public catalog blob is seeded, and the site is published at its `azurestaticapps.net` hostname.
-- `/admin` is a role-protected, add-only photo/catalog editor. It resizes photos in the browser and saves through admin-checked Functions. Editing existing knives, reorder/hide/delete, Wix migration, source photos, and approved bio/policies remain to be done.
+- `/admin` is a role-protected photo/catalog editor. It resizes bulk-selected photos in the browser, can create one catalog entry per image in a selected folder, and supports editing knife details, photo descriptions, photo order, visibility, permanent deletion, and the homepage biography through admin-checked Functions. Wix migration, source photos, and policies remain to be done.
 - Custom-domain DNS/email cutover is intentionally out of scope until the Azure hostname has been accepted.
 
 ## Local development
@@ -64,6 +64,6 @@ The workflow builds both the Astro site and Functions API on pushes and pull req
 
 ## Next implementation steps
 
-1. Extend admin editing with reorder, hide, restore, and delete-forever; test the upload flow on iPhone and Android.
+1. Add hide/restore controls; test the upload and editing flows on iPhone and Android.
 2. Build the Wix migration/review tooling and get Stan's approval of imported text, status, and featured knives.
 3. Migrate the bio, contact details, policies, banner, and gallery photos. Do not cut over DNS before Wix email records are inventoried.

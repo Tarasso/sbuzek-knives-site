@@ -1,5 +1,6 @@
 import { app, type HttpRequest, type HttpResponseInit, type InvocationContext } from "@azure/functions";
 import { ContainerClient } from "@azure/storage-blob";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 type PieceStatus = "gallery" | "available" | "hidden";
 
@@ -33,6 +34,7 @@ interface Piece extends PieceInput {
 interface Catalog {
 	schemaVersion: 1;
 	updatedAt: string;
+	biography?: string;
 	pieces: Piece[];
 }
 
@@ -40,6 +42,8 @@ const ulidPattern = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 const photoVariants = ["thumb", "display", "full"] as const;
 const maxPhotoBytes = 8 * 1024 * 1024;
 const maxPhotoRequestBytes = 28 * 1024 * 1024;
+const adminCookieName = "sbuzek_admin_session";
+const adminSessionSeconds = 8 * 60 * 60;
 
 function response(status: number, body: unknown, headers: Record<string, string> = {}): HttpResponseInit {
 	return {
@@ -50,6 +54,7 @@ function response(status: number, body: unknown, headers: Record<string, string>
 }
 
 function adminError(request: HttpRequest): HttpResponseInit | undefined {
+	if (hasPasswordSession(request)) return undefined;
 	const principalHeader = request.headers.get("x-ms-client-principal");
 	if (!principalHeader) return response(401, { error: "Sign in to manage the catalog." });
 	try {
@@ -61,6 +66,68 @@ function adminError(request: HttpRequest): HttpResponseInit | undefined {
 		return response(401, { error: "The sign-in information could not be verified." });
 	}
 	return undefined;
+}
+
+function hasPasswordSession(request: HttpRequest): boolean {
+	const password = process.env.ADMIN_PASSWORD;
+	if (!password) return false;
+	const cookie = request.headers.get("cookie")
+		?.split(";")
+		.map((part) => part.trim())
+		.find((part) => part.startsWith(`${adminCookieName}=`))
+		?.slice(adminCookieName.length + 1);
+	if (!cookie) return false;
+
+	const [expiry, nonce, signature, extra] = cookie.split(".");
+	const expiresAt = Number(expiry);
+	if (extra !== undefined || !nonce || !signature || !Number.isSafeInteger(expiresAt) || expiresAt <= Math.floor(Date.now() / 1000)) return false;
+
+	const expected = createHmac("sha256", password).update(`${expiry}.${nonce}`).digest();
+	const actual = Buffer.from(signature, "base64url");
+	return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+async function passwordLoginHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+	const configuredPassword = process.env.ADMIN_PASSWORD;
+	if (!configuredPassword || configuredPassword.length < 20) {
+		context.error("Password login is unavailable because ADMIN_PASSWORD is missing or too short.");
+		return response(503, { error: "Password sign-in is not configured. Use Microsoft sign-in or configure a 20-character password." }, { "cache-control": "no-store" });
+	}
+
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return response(400, { error: "Enter your admin password." }, { "cache-control": "no-store" });
+	}
+	const submittedPassword = body && typeof body === "object" && !Array.isArray(body)
+		? (body as Record<string, unknown>).password
+		: undefined;
+	if (typeof submittedPassword !== "string" || submittedPassword.length > 1024) {
+		return response(400, { error: "Enter your admin password." }, { "cache-control": "no-store" });
+	}
+
+	const expected = createHash("sha256").update(configuredPassword).digest();
+	const actual = createHash("sha256").update(submittedPassword).digest();
+	if (!timingSafeEqual(actual, expected)) {
+		return response(401, { error: "That password was not accepted." }, { "cache-control": "no-store" });
+	}
+
+	const expiry = String(Math.floor(Date.now() / 1000) + adminSessionSeconds);
+	const nonce = randomBytes(16).toString("base64url");
+	const payload = `${expiry}.${nonce}`;
+	const signature = createHmac("sha256", configuredPassword).update(payload).digest("base64url");
+	return response(200, { ok: true }, {
+		"cache-control": "no-store",
+		"set-cookie": `${adminCookieName}=${payload}.${signature}; Path=/; Max-Age=${adminSessionSeconds}; HttpOnly; Secure; SameSite=Strict`,
+	});
+}
+
+async function passwordLogoutHandler(): Promise<HttpResponseInit> {
+	return response(200, { ok: true }, {
+		"cache-control": "no-store",
+		"set-cookie": `${adminCookieName}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict`,
+	});
 }
 
 function mediaContainer(): ContainerClient {
@@ -163,7 +230,7 @@ function validatePiece(value: unknown, id: string): PieceInput | string {
 	if (Object.keys(input).some((key) => !allowed.has(key))) return "Knife details contain an unknown field.";
 	if (typeof input.title !== "string" || input.title.trim().length < 1 || input.title.length > 120) return "Title must be 1 to 120 characters.";
 	if (typeof input.description !== "string" || input.description.length > 4000) return "Description must be 4,000 characters or fewer.";
-	if (input.status !== "gallery" && input.status !== "available") return "Choose Gallery or For sale.";
+	if (input.status !== "gallery" && input.status !== "available" && input.status !== "hidden") return "Choose On site, For sale, or Hidden.";
 	if (typeof input.featured !== "boolean") return "Home-page setting is invalid.";
 	if (input.priceNote !== undefined && (typeof input.priceNote !== "string" || input.priceNote.length > 200)) return "Price note must be 200 characters or fewer.";
 	if (!Array.isArray(input.photos) || input.photos.length < 1 || input.photos.length > 12) return "Add between 1 and 12 photos.";
@@ -225,7 +292,7 @@ async function savePieceHandler(request: HttpRequest, context: InvocationContext
 			const pieces = existing
 				? catalog.pieces.map((item) => item.id === id ? piece : item)
 				: [piece, ...catalog.pieces];
-			const updated: Catalog = { schemaVersion: 1, updatedAt: now, pieces };
+			const updated: Catalog = { ...catalog, updatedAt: now, pieces };
 			try {
 				await catalogBlob.uploadData(Buffer.from(JSON.stringify(updated)), {
 					blobHTTPHeaders: { blobContentType: "application/json", blobCacheControl: "public, max-age=60" },
@@ -244,23 +311,132 @@ async function savePieceHandler(request: HttpRequest, context: InvocationContext
 	}
 }
 
+async function deletePieceHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+	const denied = adminError(request);
+	if (denied) return denied;
+	const id = request.params.id;
+	if (!isUlid(id)) return response(400, { error: "The knife ID is invalid." });
+
+	try {
+		const container = mediaContainer();
+		const catalogBlob = container.getBlockBlobClient("catalog.json");
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			const { catalog, etag } = await readCatalog(container);
+			const existing = catalog.pieces.find((piece) => piece.id === id);
+			if (!existing) return response(404, { error: "The knife could not be found." });
+			const now = new Date().toISOString();
+			const updated: Catalog = {
+				...catalog,
+				updatedAt: now,
+				pieces: catalog.pieces.filter((piece) => piece.id !== id),
+			};
+			try {
+				await catalogBlob.uploadData(Buffer.from(JSON.stringify(updated)), {
+					blobHTTPHeaders: { blobContentType: "application/json", blobCacheControl: "public, max-age=60" },
+					conditions: { ifMatch: etag },
+				});
+				try {
+					await removeUnreferencedPhotos(container, { ...existing, photos: [] });
+				} catch (cleanupError) {
+					context.error("The knife was deleted, but its photos could not all be removed.", cleanupError);
+				}
+				return response(200, { id });
+			} catch (error) {
+				if ((error as { statusCode?: number }).statusCode !== 412 || attempt === 2) throw error;
+			}
+		}
+		return response(409, { error: "The catalog changed repeatedly. Please try deleting again." });
+	} catch (error) {
+		context.error("Could not delete the knife.", error);
+		return response(500, { error: "The knife could not be deleted." });
+	}
+}
+
+async function saveSiteContentHandler(request: HttpRequest, context: InvocationContext): Promise<HttpResponseInit> {
+	const denied = adminError(request);
+	if (denied) return denied;
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		return response(400, { error: "Biography details must be valid JSON." });
+	}
+	if (!body || typeof body !== "object" || Array.isArray(body)) return response(400, { error: "Biography details are invalid." });
+	const input = body as Record<string, unknown>;
+	if (Object.keys(input).some((key) => key !== "biography")) return response(400, { error: "Biography details contain an unknown field." });
+	if (typeof input.biography !== "string" || input.biography.trim().length < 1 || input.biography.length > 12000) {
+		return response(400, { error: "Biography must contain 1 to 12,000 characters." });
+	}
+
+	try {
+		const container = mediaContainer();
+		const catalogBlob = container.getBlockBlobClient("catalog.json");
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			const { catalog, etag } = await readCatalog(container);
+			const biography = input.biography.trim();
+			const updated: Catalog = { ...catalog, biography, updatedAt: new Date().toISOString() };
+			try {
+				await catalogBlob.uploadData(Buffer.from(JSON.stringify(updated)), {
+					blobHTTPHeaders: { blobContentType: "application/json", blobCacheControl: "public, max-age=60" },
+					conditions: { ifMatch: etag },
+				});
+				return response(200, { biography });
+			} catch (error) {
+				if ((error as { statusCode?: number }).statusCode !== 412 || attempt === 2) throw error;
+			}
+		}
+		return response(409, { error: "The catalog changed repeatedly. Please try saving again." });
+	} catch (error) {
+		context.error("Could not save the biography.", error);
+		return response(500, { error: "The biography could not be saved." });
+	}
+}
+
 app.http("adminCatalog", {
 	methods: ["GET"],
 	authLevel: "anonymous",
-	route: "admin/catalog",
+	route: "catalog",
 	handler: catalogHandler,
 });
 
 app.http("adminPhotos", {
 	methods: ["POST"],
 	authLevel: "anonymous",
-	route: "admin/photos",
+	route: "photos",
 	handler: photoHandler,
 });
 
 app.http("adminSavePiece", {
 	methods: ["PUT"],
 	authLevel: "anonymous",
-	route: "admin/pieces/{id}",
+	route: "pieces/{id}",
 	handler: savePieceHandler,
+});
+
+app.http("adminDeletePiece", {
+	methods: ["DELETE"],
+	authLevel: "anonymous",
+	route: "pieces/{id}",
+	handler: deletePieceHandler,
+});
+
+app.http("adminPasswordLogin", {
+	methods: ["POST"],
+	authLevel: "anonymous",
+	route: "auth/login",
+	handler: passwordLoginHandler,
+});
+
+app.http("adminPasswordLogout", {
+	methods: ["POST"],
+	authLevel: "anonymous",
+	route: "auth/logout",
+	handler: passwordLogoutHandler,
+});
+
+app.http("adminSiteContent", {
+	methods: ["PUT"],
+	authLevel: "anonymous",
+	route: "site-content",
+	handler: saveSiteContentHandler,
 });
